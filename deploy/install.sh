@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
-# tetherd installer. Usage:
+# tethersysd installer. Usage:
 #   sudo bash install.sh install     first-time setup (asks 3 questions)
 #   sudo bash install.sh update      pull the newest image and restart
-#   sudo bash install.sh backup      write ~/tether-backup-<date>.tar.gz
+#   sudo bash install.sh backup      write ~/tethersys-backup-<date>.tar.gz
 #   sudo bash install.sh restore F   restore from a backup file
 #   sudo bash install.sh uninstall   stop and remove everything
 #   sudo bash install.sh ticket      print the server ticket again
 #
-# Non-interactive: set TETHER_DOMAIN, TETHER_EMAIL, TETHER_TUNNELS=yes|no before running.
+# Non-interactive: set TETHERSYS_DOMAIN, TETHERSYS_EMAIL, TETHERSYS_TUNNELS=yes|no before running.
 set -euo pipefail
 
-REPO="${TETHER_REPO:-https://github.com/jaredkotvas/tether}"
-RAW="${TETHER_RAW:-https://raw.githubusercontent.com/jaredkotvas/tether/main/deploy}"
-IMAGE="${TETHER_IMAGE:-ghcr.io/jaredkotvas/tetherd:latest}"
+REPO="${TETHERSYS_REPO:-https://github.com/Xattribution/tethersys}"
+RAW="${TETHERSYS_RAW:-https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy}"
+IMAGE="${TETHERSYS_IMAGE:-ghcr.io/xattribution/tethersysd:latest}"
 PORT=47711
 WG_PORT=47712
-WG_IFACE=tether0
+WG_IFACE=tethersys0
 
 OWNER="${SUDO_USER:-$(id -un)}"
 HOME_DIR="$(getent passwd "$OWNER" | cut -d: -f6)"
-DIR="$HOME_DIR/tether"
+DIR="$HOME_DIR/tethersys"
 
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 need_root() { [ "$(id -u)" -eq 0 ] || die "run with sudo"; }
 compose() {
   local files=(-f "$DIR/docker-compose.yml")
-  [ -f "$DIR/docker-compose.wg.yml" ] && grep -q '^TETHERD_WG_IFACE=' "$DIR/.env" && files+=(-f "$DIR/docker-compose.wg.yml")
+  [ -f "$DIR/docker-compose.wg.yml" ] && grep -q '^TETHERSYSD_WG_IFACE=' "$DIR/.env" && files+=(-f "$DIR/docker-compose.wg.yml")
   local profiles=()
-  grep -q '^TETHER_RELAY=yes' "$DIR/.env" && profiles+=(--profile relay)
+  grep -q '^TETHERSYS_RELAY=yes' "$DIR/.env" && profiles+=(--profile relay)
   docker compose --project-directory "$DIR" "${files[@]}" "${profiles[@]}" "$@"
 }
 
@@ -75,7 +75,7 @@ PrivateKey = $(wg genkey)
 EOF
   fi
   sysctl -q -w net.ipv4.ip_forward=1
-  grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.d/99-tether.conf 2>/dev/null || echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-tether.conf
+  grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.d/99-tethersys.conf 2>/dev/null || echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-tethersys.conf
   systemctl enable --now "wg-quick@$WG_IFACE" >/dev/null
 }
 
@@ -87,21 +87,21 @@ cmd_install() {
   fetch_files
 
   local public_ip; public_ip="$(curl -fsS4 https://api.ipify.org || true)"
-  ask TETHER_DOMAIN "Domain for your own relay (blank = use the free public relays):" ""
-  [ -n "$TETHER_DOMAIN" ] && ask TETHER_EMAIL "Email for the Let's Encrypt certificate:" ""
-  ask TETHER_TUNNELS "Offer WireGuard tunnels? (yes/no)" "no"
+  ask TETHERSYS_DOMAIN "Domain for your own relay (blank = use the free public relays):" ""
+  [ -n "$TETHERSYS_DOMAIN" ] && ask TETHERSYS_EMAIL "Email for the Let's Encrypt certificate:" ""
+  ask TETHERSYS_TUNNELS "Offer WireGuard tunnels? (yes/no)" "no"
 
   local token; token="$(head -c 20 /dev/urandom | base32 | tr -d '=' | tr 'A-Z' 'a-z')"
   {
-    echo "TETHER_IMAGE=$IMAGE"
-    echo "TETHERD_PORT=$PORT"
-    echo "TETHERD_TOKEN=$token"
-    [ -n "$public_ip" ] && echo "TETHERD_PUBLIC_ADDR=$public_ip:$PORT"
+    echo "TETHERSYS_IMAGE=$IMAGE"
+    echo "TETHERSYSD_PORT=$PORT"
+    echo "TETHERSYSD_TOKEN=$token"
+    [ -n "$public_ip" ] && echo "TETHERSYSD_PUBLIC_ADDR=$public_ip:$PORT"
   } >"$DIR/.env"
 
-  if [ -n "$TETHER_DOMAIN" ]; then
-    echo "TETHER_RELAY=yes" >>"$DIR/.env"
-    echo "TETHERD_RELAY_URL=https://$TETHER_DOMAIN" >>"$DIR/.env"
+  if [ -n "$TETHERSYS_DOMAIN" ]; then
+    echo "TETHERSYS_RELAY=yes" >>"$DIR/.env"
+    echo "TETHERSYSD_RELAY_URL=https://$TETHERSYS_DOMAIN" >>"$DIR/.env"
     cat >"$DIR/relay/relay.toml" <<EOF
 enable_relay = true
 http_bind_addr = "0.0.0.0:80"
@@ -112,8 +112,8 @@ enable_metrics = false
 https_bind_addr = "0.0.0.0:443"
 quic_bind_addr = "0.0.0.0:7842"
 cert_mode = "LetsEncrypt"
-hostname = "$TETHER_DOMAIN"
-${TETHER_EMAIL:+contact = \"$TETHER_EMAIL\"}
+hostname = "$TETHERSYS_DOMAIN"
+${TETHERSYS_EMAIL:+contact = \"$TETHERSYS_EMAIL\"}
 cert_dir = "/data/certs"
 prod_tls = true
 
@@ -122,12 +122,12 @@ shared_token = ["$token"]
 EOF
   fi
 
-  if [ "$TETHER_TUNNELS" = "yes" ]; then
+  if [ "$TETHERSYS_TUNNELS" = "yes" ]; then
     setup_wireguard
     {
-      echo "TETHERD_WG_IFACE=$WG_IFACE"
-      echo "TETHERD_WG_ENDPOINT=${TETHER_DOMAIN:-$public_ip}:$WG_PORT"
-      echo "TETHERD_WG_SUBNET=10.77.0.0/24"
+      echo "TETHERSYSD_WG_IFACE=$WG_IFACE"
+      echo "TETHERSYSD_WG_ENDPOINT=${TETHERSYS_DOMAIN:-$public_ip}:$WG_PORT"
+      echo "TETHERSYSD_WG_SUBNET=10.77.0.0/24"
     } >>"$DIR/.env"
   fi
   chmod 600 "$DIR/.env"
@@ -139,8 +139,8 @@ EOF
   say "Waiting for the server ticket"
   for _ in $(seq 1 30); do [ -s "$DIR/data/ticket.txt" ] && break; sleep 1; done
   local ports="UDP $PORT"
-  [ -n "$TETHER_DOMAIN" ] && ports="$ports, TCP 80 and 443, UDP 7842"
-  [ "$TETHER_TUNNELS" = "yes" ] && ports="$ports, UDP $WG_PORT"
+  [ -n "$TETHERSYS_DOMAIN" ] && ports="$ports, TCP 80 and 443, UDP 7842"
+  [ "$TETHERSYS_TUNNELS" = "yes" ] && ports="$ports, UDP $WG_PORT"
   say "Installed in $DIR. Allow $ports through your firewall."
   cmd_ticket
 }
@@ -156,7 +156,7 @@ cmd_update() {
 
 cmd_backup() {
   need_root
-  local out; out="$HOME_DIR/tether-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+  local out; out="$HOME_DIR/tethersys-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
   compose stop >/dev/null
   tar -czf "$out" -C "$DIR" .env data relay
   compose start >/dev/null
@@ -187,7 +187,7 @@ cmd_uninstall() {
   [ -f "$DIR/.env" ] && compose down --rmi all >/dev/null 2>&1 || true
   if systemctl is-enabled "wg-quick@$WG_IFACE" >/dev/null 2>&1; then
     systemctl disable --now "wg-quick@$WG_IFACE" >/dev/null
-    rm -f "/etc/wireguard/$WG_IFACE.conf" /etc/sysctl.d/99-tether.conf
+    rm -f "/etc/wireguard/$WG_IFACE.conf" /etc/sysctl.d/99-tethersys.conf
   fi
   rm -rf "$DIR"
   say "Uninstalled."

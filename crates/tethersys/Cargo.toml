@@ -1,0 +1,37 @@
+[package]
+name = "tethersys"
+description = "Layered, serverless-first P2P networking for apps: messaging, files, pub/sub, sync, offline mailbox, tunnels."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+iroh.workspace = true
+iroh-blobs.workspace = true
+iroh-gossip.workspace = true
+iroh-mdns-address-lookup.workspace = true
+iroh-mainline-address-lookup.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+postcard.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+bytes.workspace = true
+blake3.workspace = true
+data-encoding.workspace = true
+n0-future.workspace = true
+rand.workspace = true
+curve25519-dalek.workspace = true
+chacha20poly1305.workspace = true
+subtle.workspace = true
+
+[features]
+# Test helpers (self-signed local relays). Never enable in apps.
+test-utils = ["iroh/test-utils"]
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
+tempfile = "3"

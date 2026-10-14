@@ -1,18 +1,18 @@
 # Rendered settings live in .env next to this file (the installer writes it).
 services:
-  tetherd:
-    image: ${TETHER_IMAGE:-ghcr.io/jaredkotvas/tetherd:latest}
+  tethersysd:
+    image: ${TETHERSYS_IMAGE:-ghcr.io/xattribution/tethersysd:latest}
     restart: unless-stopped
     env_file: .env
     volumes:
       - ./data:/data
     ports:
-      - "${TETHERD_PORT:-47711}:${TETHERD_PORT:-47711}/udp"
+      - "${TETHERSYSD_PORT:-47711}:${TETHERSYSD_PORT:-47711}/udp"
 
   # Enabled with: docker compose --profile relay up -d
   relay:
     profiles: ["relay"]
-    image: ${TETHER_IMAGE:-ghcr.io/jaredkotvas/tetherd:latest}
+    image: ${TETHERSYS_IMAGE:-ghcr.io/xattribution/tethersysd:latest}
     restart: unless-stopped
     entrypoint: ["iroh-relay", "--config-path", "/data/relay.toml"]
     volumes:

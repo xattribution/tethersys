@@ -1,4 +1,4 @@
-# Adding tether to an app
+# Adding tethersys to an app
 
 Written for a coding agent (Claude Code) and for humans. Read this file, then `docs/ARCHITECTURE.md` only if you need the why.
 
@@ -16,7 +16,7 @@ Written for a coding agent (Claude Code) and for humans. Read this file, then `d
 
 ```toml
 [dependencies]
-tether = { git = "https://github.com/jaredkotvas/tether" }
+tethersys = { git = "https://github.com/Xattribution/tethersys" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -27,13 +27,13 @@ tokio = { version = "1", features = ["full"] }
 Create it once at startup, keep it in an app-wide singleton, and subscribe to events once.
 
 ```rust
-use tether::{Config, Event, Node, Profile, ServerTicket};
+use tethersys::{Config, Event, Node, Profile, ServerTicket};
 
-let profile = match option_env!("TETHER_SERVER") {
+let profile = match option_env!("TETHERSYS_SERVER") {
     Some(t) => Profile::Hybrid(ServerTicket::decode(t)?),
     None => Profile::Public,
 };
-let mut cfg = Config::new(device_name, profile).data_dir(app_data_dir.join("tether"));
+let mut cfg = Config::new(device_name, profile).data_dir(app_data_dir.join("tethersys"));
 cfg.auto_accept_files = Some(downloads_dir);       // omit to approve offers in the UI
 let node = Node::spawn(cfg).await?;
 
@@ -122,39 +122,39 @@ Custom protocols sit behind the same trust gate.
 
 ## 6. Native builds
 
-The FFI crate exposes `TetherNode` with string ids, byte payloads and one `EventListener` callback.
+The FFI crate exposes `TethersysNode` with string ids, byte payloads and one `EventListener` callback.
 
 ```bash
 # Generate bindings from a host build
-cargo build -p tether-ffi --release
-cargo run -p tether-ffi --features bindgen --bin uniffi-bindgen -- \
-  generate --library target/release/libtether_ffi.so --language kotlin --out-dir bindings/kotlin
+cargo build -p tethersys-ffi --release
+cargo run -p tethersys-ffi --features bindgen --bin uniffi-bindgen -- \
+  generate --library target/release/libtethersys_ffi.so --language kotlin --out-dir bindings/kotlin
 #   --language swift  → bindings/swift      --language python → bindings/python
 
 # Android (.so per ABI into jniLibs)
 cargo install cargo-ndk
-cargo ndk -t arm64-v8a -t x86_64 -o app/src/main/jniLibs build -p tether-ffi --release
+cargo ndk -t arm64-v8a -t x86_64 -o app/src/main/jniLibs build -p tethersys-ffi --release
 
 # iOS (static lib per target, then an XCFramework)
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
-cargo build -p tether-ffi --release --target aarch64-apple-ios
-cargo build -p tether-ffi --release --target aarch64-apple-ios-sim
+cargo build -p tethersys-ffi --release --target aarch64-apple-ios
+cargo build -p tethersys-ffi --release --target aarch64-apple-ios-sim
 xcodebuild -create-xcframework \
-  -library target/aarch64-apple-ios/release/libtether_ffi.a -headers bindings/swift \
-  -library target/aarch64-apple-ios-sim/release/libtether_ffi.a -headers bindings/swift \
-  -output TetherFFI.xcframework
+  -library target/aarch64-apple-ios/release/libtethersys_ffi.a -headers bindings/swift \
+  -library target/aarch64-apple-ios-sim/release/libtethersys_ffi.a -headers bindings/swift \
+  -output TethersysFFI.xcframework
 
-# Windows (tether_ffi.dll) and C# bindings
-cargo build -p tether-ffi --release --target x86_64-pc-windows-msvc
+# Windows (tethersys_ffi.dll) and C# bindings
+cargo build -p tethersys-ffi --release --target x86_64-pc-windows-msvc
 cargo install uniffi-bindgen-cs --git https://github.com/NordSecurity/uniffi-bindgen-cs
-uniffi-bindgen-cs --library target/x86_64-pc-windows-msvc/release/tether_ffi.dll --out-dir bindings/csharp
+uniffi-bindgen-cs --library target/x86_64-pc-windows-msvc/release/tethersys_ffi.dll --out-dir bindings/csharp
 ```
 
 Kotlin usage:
 
 ```kotlin
-val node = TetherNode.start(
-    FfiConfig(name = "Pixel", dataDir = filesDir.path + "/tether", profile = FfiProfile.PUBLIC,
+val node = TethersysNode.start(
+    FfiConfig(name = "Pixel", dataDir = filesDir.path + "/tethersys", profile = FfiProfile.PUBLIC,
               serverTicket = null, autoAcceptDir = null, hideIp = false, port = null),
     object : EventListener { override fun onEvent(event: FfiEvent) { /* post to UI thread */ } })
 node.send(peerId, "chat", "hi".toByteArray())
@@ -170,4 +170,4 @@ Flutter and React Native: wrap the same crate with `flutter_rust_bridge` or `uni
 - Keep payloads small; anything over ~1 MiB is a file.
 - Never log invite strings or the server ticket; both are credentials.
 - Show link state from `Event::Connected`/`LinkChanged`; show offline status from `Event::Server`.
-- Tests: copy the pattern in `crates/tether/tests/p2p.rs` (loopback nodes, discovery off).
+- Tests: copy the pattern in `crates/tethersys/tests/p2p.rs` (loopback nodes, discovery off).

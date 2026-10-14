@@ -1,6 +1,6 @@
 # Architecture
 
-tether is one library with three rules:
+tethersys is one library with three rules:
 
 1. **Every layer works alone.** No server, no relay, no internet: nodes still pair, talk, sync and share files on a LAN.
 2. **Layers stack instead of competing.** All discovery methods run at once and the first good answer wins. All transports are paths of one connection, and the best path is used at every moment.
@@ -24,7 +24,7 @@ tether is one library with three rules:
  │  mDNS (LAN)                  │  hole-punched UDP                        │
  │  n0 DNS (pkarr)              │  relay: public n0 and/or your own        │
  │  Mainline DHT                │                                          │
- │  tetherd directory           │                                          │
+ │  tethersysd directory           │                                          │
  └──────────────────────────────┴──────────────────────────────────────────┘
 ```
 
@@ -105,16 +105,16 @@ Size guidance. Messages: up to 16 MiB each, but use files above ~1 MiB. Spaces: 
 
 Not covered: metadata at the server (who mails whom, when), traffic analysis at relays, and a compromised device (its keys are its identity; remove it with `remove_peer` on the others).
 
-## The server, `tetherd`
+## The server, `tethersysd`
 
-One small binary. It is itself a tether node, so every request is authenticated by key.
+One small binary. It is itself a tethersys node, so every request is authenticated by key.
 
 ```
              ┌─────────────── VPS ───────────────┐
  phone ──┐   │  iroh-relay  :443 TCP  (token)    │
- laptop ─┼──►│  tetherd     :47711 UDP           │
+ laptop ─┼──►│  tethersysd     :47711 UDP           │
  PC ─────┘   │    directory · mailbox · cache    │
-             │  wg tether0  :47712 UDP (optional)│
+             │  wg tethersys0  :47712 UDP (optional)│
              └───────────────────────────────────┘
 ```
 
@@ -140,5 +140,5 @@ State is one file plus a blob store, sized for a household, a team, or a fleet o
 ## Roadmap ideas
 
 - Wi-Fi Aware and Bluetooth LE as custom transports, through iroh's `unstable-custom-transports` hook.
-- Push notification hook in `tetherd`, so iOS apps wake when mail arrives.
+- Push notification hook in `tethersysd`, so iOS apps wake when mail arrives.
 - Automerge-backed space type for rich text and nested documents.

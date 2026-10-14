@@ -1,16 +1,16 @@
 [workspace]
 resolver = "3"
-members = ["crates/tether", "crates/tetherd", "crates/tether-ffi"]
+members = ["crates/tethersys", "crates/tethersysd", "crates/tethersys-ffi"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.91"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/jaredkotvas/tether"
+repository = "https://github.com/Xattribution/tethersys"
 
 [workspace.dependencies]
-tether = { path = "crates/tether" }
+tethersys = { path = "crates/tethersys" }
 iroh = "1.3"
 iroh-blobs = "0.103"
 iroh-gossip = "0.101"

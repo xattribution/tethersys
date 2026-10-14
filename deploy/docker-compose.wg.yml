@@ -1,7 +1,7 @@
-# Overlay used when tunnels are on. tetherd must manage the host's WireGuard interface,
+# Overlay used when tunnels are on. tethersysd must manage the host's WireGuard interface,
 # so it joins the host network with NET_ADMIN.
 services:
-  tetherd:
+  tethersysd:
     network_mode: host
     cap_add: ["NET_ADMIN"]
     ports: !reset []

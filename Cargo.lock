@@ -4152,7 +4152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tether"
+name = "tethersys"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -4179,17 +4179,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "tether-ffi"
+name = "tethersys-ffi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "tether",
+ "tethersys",
  "tokio",
  "uniffi",
 ]
 
 [[package]]
-name = "tetherd"
+name = "tethersysd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -4201,7 +4201,7 @@ dependencies = [
  "postcard",
  "serde",
  "tempfile",
- "tether",
+ "tethersys",
  "tokio",
  "tracing",
  "tracing-subscriber",
