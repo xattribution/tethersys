@@ -210,6 +210,9 @@ pub(crate) struct Inner {
     pub trust: Arc<TrustStore>,
     pub box_key: BoxKey,
     pub events: broadcast::Sender<Event>,
+    /// Receiver created at startup. The first `events()` call gets it, so nothing that
+    /// happened before the app subscribed (like mailbox delivery) is lost.
+    first_rx: Mutex<Option<broadcast::Receiver<Event>>>,
     pub invites: Invites,
     pub memory: MemoryLookup,
     pub seen: Seen,
@@ -555,7 +558,7 @@ impl Node {
             }
         };
         let gossip = Gossip::builder().spawn(ep.clone());
-        let (events, _) = broadcast::channel(1024);
+        let (events, first_rx) = broadcast::channel(1024);
 
         let inner = Arc::new_cyclic(|me| Inner {
             ep: ep.clone(),
@@ -564,6 +567,7 @@ impl Node {
             cfg,
             trust,
             events,
+            first_rx: Mutex::new(Some(first_rx)),
             invites: Invites::default(),
             memory,
             seen: Seen::default(),
@@ -618,8 +622,12 @@ impl Node {
             .is_ok()
     }
 
+    /// Event stream. The first call also receives everything since the node started.
     pub fn events(&self) -> broadcast::Receiver<Event> {
-        self.inner.events.subscribe()
+        match self.inner.first_rx.lock().unwrap().take() {
+            Some(rx) => rx,
+            None => self.inner.events.subscribe(),
+        }
     }
 
     /// The raw iroh endpoint, for apps that want to go below this crate.

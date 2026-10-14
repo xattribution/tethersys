@@ -252,3 +252,24 @@ async fn relay_fallback_when_direct_is_impossible() {
     .await;
     assert_eq!(&body[..], b"via relay");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn first_subscriber_sees_events_from_before_it_subscribed() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = node("alice", dir.path()).await;
+    let b = node("bob", dir.path()).await;
+    b.join(&a.invite(Duration::from_secs(60), 1).encode())
+        .await
+        .unwrap();
+    a.send_with(b.id(), "chat", "early", Delivery::Direct)
+        .await
+        .unwrap();
+    // Bob only subscribes now, after the message already arrived.
+    let mut be = b.events();
+    let body = wait_for(&mut be, |e| match e {
+        Event::Message { body, .. } => Some(body.clone()),
+        _ => None,
+    })
+    .await;
+    assert_eq!(&body[..], b"early");
+}

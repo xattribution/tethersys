@@ -62,19 +62,16 @@ async fn wait_for<T>(rx: &mut Receiver<Event>, mut f: impl FnMut(&Event) -> Opti
     .expect("event did not arrive in time")
 }
 
-async fn registered(n: &Node, rx: &mut Receiver<Event>) {
-    let _ = n;
-    wait_for(rx, |e| {
-        matches!(
-            e,
-            Event::Server {
-                connected: true,
-                ..
-            }
-        )
-        .then_some(())
+/// Registered once the server accepts a members-only request. Polling avoids missing an
+/// event that fired before the test subscribed.
+async fn registered(n: &Node, _rx: &mut Receiver<Event>) {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        while n.check_mailbox().await.is_err() {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
     })
-    .await;
+    .await
+    .expect("node did not register with the server in time");
 }
 
 #[tokio::test(flavor = "multi_thread")]
