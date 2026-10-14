@@ -1,55 +1,78 @@
 # tethersys
 
-Peer-to-peer networking you drop into any app. Pairing, messages, RPC, file transfer, pub/sub, replicated state, an offline mailbox and WireGuard tunnels, over one encrypted QUIC connection per peer. Works with no server; gets better with one.
+Peer-to-peer networking you drop into any app. Pairing, messages, RPC, file transfer, pub/sub, replicated state, an offline mailbox and WireGuard tunnels, over one encrypted QUIC connection per peer. Works with no server. A server is an optional add-on for apps that need offline delivery or tunnels.
 
 ## Quick start
 
-**In an app (Rust):**
-
 ```toml
-tethersys = { git = "https://github.com/Xattribution/tethersys" }
+tethersys = { git = "https://github.com/xattribution/tethersys" }
 ```
 
 ```rust
 let node = tethersys::Node::spawn(tethersys::Config::new("laptop", tethersys::Profile::Public).data_dir("./state")).await?;
 let invite = node.invite(Duration::from_secs(900), 1).encode();   // QR this
 // other device: node.join(&invite).await?;
-node.send(peer_id, "chat", "hello").await?;                        // Direct, Relayed or Queued
+node.send(peer_id, "chat", "hello").await?;
 ```
 
-Android, iOS and Windows use the generated Kotlin, Swift and C# bindings. See [INTEGRATION.md](INTEGRATION.md).
+That is the whole setup. No server is involved: devices find each other on the LAN, through public DNS/DHT, and through free public relays. Android, iOS and Windows use the generated Kotlin, Swift and C# bindings. [INTEGRATION.md](INTEGRATION.md) is the guide an app (or Claude Code) follows.
 
-**Optional server (any Linux VPS):**
+## The menu
+
+An app picks the pieces it needs. Unused pieces cost nothing at runtime.
+
+| Piece | Call | Use it for |
+|---|---|---|
+| Pairing | `invite()` / `join()` | QR or link pairing between devices |
+| Messages | `send()` | Chat, notifications, commands |
+| Request/response | `on_request()` / `request()` | Device-to-device RPC |
+| Files | `send_file()` / `accept_file()` | Resumable, verified transfers |
+| Topics | `topic().publish()` | Live fan-out: presence, cursors, telemetry |
+| Spaces | `space().set()` / `get()` | Shared state that syncs when devices meet |
+| Custom protocol | `Node::builder().protocol()` | Raw QUIC streams for anything else |
+
+How devices find and reach each other is a second menu, picked with one profile:
+
+| Profile | Needs | Best for |
+|---|---|---|
+| `Public` (default) | Nothing | Most apps |
+| `Local` | Nothing, not even internet | LAN-only or field use |
+| `Sovereign` | Nothing | Zero third-party services; some strict NATs won't connect |
+| `Hybrid` / `SelfHosted` | A `tethersysd` server | Apps that need the extras below |
+
+Diagrams, costs and the security model are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Optional: `tethersysd`, for apps that need it
+
+Only deploy a server when an app needs one of these. Everything above works without it.
+
+| Extra | Without a server |
+|---|---|
+| Offline mailbox (message a device that's off) | Sends to offline devices fail |
+| File cache (sender can leave before receiver downloads) | Sender must stay online |
+| Private relay on port 443 | Public relays are used instead |
+| WireGuard tunnels (device-level VPN) | Not available |
+
+<details>
+<summary>Server install commands</summary>
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh | sudo bash -s install
+curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh | sudo bash -s install
 ```
 
-It asks three questions (relay domain, email, tunnels on or off) and prints a server ticket. Paste the ticket into the app config and switch the profile to `Hybrid(ticket)`.
+It asks three questions (relay domain, email, tunnels on or off) and prints a server ticket. The app passes that ticket in `Profile::Hybrid(ticket)`.
 
 | Task | Command |
 |---|---|
-| Update | `curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh \| sudo bash -s update` |
-| Uninstall | `curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh \| sudo bash -s uninstall` |
-| Backup | `curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh \| sudo bash -s backup` |
-| Restore | `curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh \| sudo bash -s restore ~/tethersys-backup-<date>.tar.gz` |
-| Show ticket | `curl -fsSL https://raw.githubusercontent.com/Xattribution/tethersys/main/deploy/install.sh \| sudo bash -s ticket` |
+| Update | `curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh \| sudo bash -s update` |
+| Uninstall | `curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh \| sudo bash -s uninstall` |
+| Backup | `curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh \| sudo bash -s backup` |
+| Restore | `curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh \| sudo bash -s restore ~/tethersys-backup-<date>.tar.gz` |
+| Show ticket | `curl -fsSL https://raw.githubusercontent.com/xattribution/tethersys/main/deploy/install.sh \| sudo bash -s ticket` |
 
 Installs to `~/tethersys`. Ports: UDP 47711 (server), TCP 80/443 and UDP 7842 (relay, only with a domain), UDP 47712 (tunnels, only if enabled).
 
-## What you get
-
-| Layer | Without a server | With `tethersysd` |
-|---|---|---|
-| Find peers | invite address, LAN (mDNS), DNS, Mainline DHT | + directory with live addresses |
-| Reach peers | LAN, hole-punched UDP, public relays | + your own token-gated relay on 443 |
-| Messages | live, deduplicated, retried | + sealed mailbox for offline peers |
-| Files | resumable, BLAKE3-verified, multi-source | + 72 h cache so senders can go offline |
-| Pub/sub | signed gossip topics | same |
-| Data sync | signed last-writer-wins spaces, catch-up on contact | same |
-| Tunnels | none | WireGuard hub with stable per-device IPs |
-
-Profiles bundle these into five presets: `Public`, `Hybrid`, `SelfHosted`, `Local` (LAN only, no internet) and `Sovereign` (no servers at all). Diagrams, costs and the security model are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+</details>
 
 ## Layout
 

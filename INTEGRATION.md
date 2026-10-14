@@ -6,7 +6,7 @@ Written for a coding agent (Claude Code) and for humans. Read this file, then `d
 
 | Question | Options | Default |
 |---|---|---|
-| Which profile? | `Public`, `Hybrid(ticket)`, `SelfHosted(ticket)`, `Local`, `Sovereign` | `Public`; `Hybrid` once a server exists |
+| Which profile? | `Public`, `Local`, `Sovereign`, or `Hybrid(ticket)` / `SelfHosted(ticket)` | `Public`. Only use a server profile if the app needs offline delivery, a file cache, a private relay or tunnels |
 | Which language binding? | Rust crate, Kotlin (Android), Swift (iOS/macOS), C# (Windows), Python (scripts/tests) | Match the app |
 | Which services? | messages, request/response, files, topics, spaces, tunnels, custom ALPN | Only what the app needs; unused services cost nothing |
 
