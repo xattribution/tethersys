@@ -20,6 +20,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features
+      - name: Each feature builds on its own
+        run: |
+          for f in "" files pubsub sync mdns dht mailbox tunnel; do
+            cargo clippy -q -p tethersys --no-default-features ${f:+--features $f} -- -D warnings
+          done
 
   # Each architecture builds on its own native runner, so nothing runs under emulation.
   image:
