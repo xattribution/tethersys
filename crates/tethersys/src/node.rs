@@ -460,6 +460,7 @@ enum StoreKeepalive {
 pub struct NodeBuilder {
     cfg: Config,
     extra: Vec<(Vec<u8>, Box<dyn DynProtocolHandler>)>,
+    forward: Option<std::net::SocketAddr>,
 }
 
 impl NodeBuilder {
@@ -473,8 +474,16 @@ impl NodeBuilder {
         self
     }
 
+    /// Forward TCP from trusted peers to `target` (see `Node::forward_tcp` on their side).
+    /// Every stream is checked against the trust list, so removing a peer stops its new
+    /// forwards even on a connection it already had open.
+    pub fn serve_tcp(mut self, target: std::net::SocketAddr) -> Self {
+        self.forward = Some(target);
+        self
+    }
+
     pub async fn spawn(self) -> Result<Node> {
-        Node::start(self.cfg, self.extra).await
+        Node::start(self.cfg, self.extra, self.forward).await
     }
 }
 
@@ -483,16 +492,18 @@ impl Node {
         NodeBuilder {
             cfg,
             extra: Vec::new(),
+            forward: None,
         }
     }
 
     pub async fn spawn(cfg: Config) -> Result<Node> {
-        Self::start(cfg, Vec::new()).await
+        Self::start(cfg, Vec::new(), None).await
     }
 
     async fn start(
         cfg: Config,
         extra: Vec<(Vec<u8>, Box<dyn DynProtocolHandler>)>,
+        forward: Option<std::net::SocketAddr>,
     ) -> Result<Node> {
         let dir = cfg.data_dir.clone();
         if let Some(d) = &dir {
@@ -585,6 +596,12 @@ impl Node {
             .accept(crate::sync::ALPN, SyncHandler(inner.clone()))
             .accept(iroh_blobs::ALPN, BlobsProtocol::new(&store, None))
             .accept(iroh_gossip::ALPN, gossip);
+        if let Some(target) = forward {
+            rb = rb.accept(
+                crate::forward::FORWARD_ALPN,
+                crate::forward::ForwardServer::new(target, inner.trust.clone()),
+            );
+        }
         for (alpn, h) in extra {
             rb = rb.accept(alpn, h);
         }
@@ -635,6 +652,17 @@ impl Node {
         &self.inner.ep
     }
 
+    /// Connect to a trusted peer on `alpn` the way the built-in services do: a pooled
+    /// connection if one is open, else every discovery layer at once, then the server
+    /// directory. Link changes for it are reported as events. For custom protocols.
+    pub async fn connect(&self, peer: NodeId, alpn: &'static [u8]) -> Result<Connection> {
+        self.inner.connect(peer, alpn).await
+    }
+
+    pub(crate) fn inner(&self) -> &Inner {
+        &self.inner
+    }
+
     /// How we currently reach a peer, if a connection is open.
     pub fn link(&self, peer: NodeId) -> Option<(LinkKind, u64)> {
         let pool = self.inner.pool.lock().unwrap();
@@ -676,6 +704,7 @@ impl Node {
 
     pub fn remove_peer(&self, id: NodeId) -> Result<bool> {
         self.inner.forget(id, crate::messaging::ALPN);
+        self.inner.forget(id, crate::forward::FORWARD_ALPN);
         self.inner.trust.remove(&id)
     }
 

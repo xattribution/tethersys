@@ -5,7 +5,9 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
-use tethersys::{Config, Event, LinkKind, Node, NodeId, Profile, ServerTicket, Space, Topic};
+use tethersys::{
+    Config, Event, Forward, LinkKind, Node, NodeId, Profile, ServerTicket, Space, Topic,
+};
 use tokio::sync::Mutex;
 
 uniffi::setup_scaffolding!();
@@ -261,6 +263,7 @@ pub struct TethersysNode {
     node: Node,
     topics: Mutex<HashMap<String, Topic>>,
     spaces: Mutex<HashMap<String, Space>>,
+    forwards: Mutex<HashMap<NodeId, Forward>>,
 }
 
 impl TethersysNode {
@@ -322,6 +325,7 @@ impl TethersysNode {
             node,
             topics: Mutex::new(HashMap::new()),
             spaces: Mutex::new(HashMap::new()),
+            forwards: Mutex::new(HashMap::new()),
         }))
     }
 
@@ -433,6 +437,33 @@ impl TethersysNode {
             .into_iter()
             .map(|(k, _)| k)
             .collect())
+    }
+
+    /// Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+    /// 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+    pub async fn forward_tcp(&self, peer: String) -> Result<u16> {
+        let id = parse_id(&peer)?;
+        let mut f = self.forwards.lock().await;
+        if let Some(fwd) = f.get(&id) {
+            return Ok(fwd.local_addr().port());
+        }
+        let fwd = self
+            .node
+            .forward_tcp(id, std::net::SocketAddr::from(([127, 0, 0, 1], 0)))
+            .await?;
+        let port = fwd.local_addr().port();
+        f.insert(id, fwd);
+        Ok(port)
+    }
+
+    /// Close the forward to `peer`, if there is one.
+    pub async fn stop_forward(&self, peer: String) -> Result<bool> {
+        Ok(self
+            .forwards
+            .lock()
+            .await
+            .remove(&parse_id(&peer)?)
+            .is_some())
     }
 
     pub async fn check_mailbox(&self) -> Result<u32> {

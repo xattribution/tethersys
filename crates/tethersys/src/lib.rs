@@ -23,6 +23,7 @@
 
 pub mod events;
 pub mod files;
+pub mod forward;
 pub mod identity;
 mod mailbox;
 pub mod messaging;
@@ -38,6 +39,7 @@ pub mod wire;
 pub use bytes::Bytes;
 pub use events::{Event, LinkKind};
 pub use files::FileOffer;
+pub use forward::{FORWARD_ALPN, Forward};
 pub use identity::NodeId;
 pub use iroh::{EndpointAddr, RelayUrl, SecretKey};
 pub use messaging::Delivery;

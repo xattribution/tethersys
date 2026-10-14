@@ -533,6 +533,8 @@ def _uniffi_check_api_checksums(lib):
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox() != 18392:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp() != 2909:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_id() != 36981:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_invite() != 51953:
@@ -564,6 +566,8 @@ def _uniffi_check_api_checksums(lib):
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_keys() != 5463:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set() != 37770:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward() != 24260:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe() != 39563:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
@@ -612,6 +616,9 @@ _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_accept_file.restyp
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox.argtypes = (
 )
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox.restype = ctypes.c_uint16
+_UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp.argtypes = (
+)
+_UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp.restype = ctypes.c_uint16
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_id.argtypes = (
 )
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_id.restype = ctypes.c_uint16
@@ -660,6 +667,9 @@ _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_keys.restype
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set.argtypes = (
 )
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set.restype = ctypes.c_uint16
+_UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward.argtypes = (
+)
+_UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward.restype = ctypes.c_uint16
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe.argtypes = (
 )
 _UniffiLib.uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe.restype = ctypes.c_uint16
@@ -692,6 +702,11 @@ _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_check_mailbox.argtypes =
     ctypes.c_uint64,
 )
 _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_check_mailbox.restype = ctypes.c_uint64
+_UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp.argtypes = (
+    ctypes.c_uint64,
+    _UniffiRustBuffer,
+)
+_UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp.restype = ctypes.c_uint64
 _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_id.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -787,6 +802,11 @@ _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_space_set.argtypes = (
     _UniffiRustBuffer,
 )
 _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_space_set.restype = ctypes.c_uint64
+_UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward.argtypes = (
+    ctypes.c_uint64,
+    _UniffiRustBuffer,
+)
+_UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward.restype = ctypes.c_uint64
 _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_subscribe.argtypes = (
     ctypes.c_uint64,
     _UniffiRustBuffer,
@@ -2634,6 +2654,12 @@ class TethersysNodeProtocol(typing.Protocol):
         raise NotImplementedError
     async def check_mailbox(self, ) -> int:
         raise NotImplementedError
+    async def forward_tcp(self, peer: str) -> int:
+        """
+        Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+        127.0.0.1 to connect to; asking again for the same peer returns the same port.
+"""
+        raise NotImplementedError
     def id(self, ) -> str:
         raise NotImplementedError
     def invite(self, ttl_secs: int,uses: int) -> str:
@@ -2668,6 +2694,11 @@ class TethersysNodeProtocol(typing.Protocol):
     async def space_keys(self, space: str) -> typing.List[str]:
         raise NotImplementedError
     async def space_set(self, space: str,key: str,value: bytes) -> None:
+        raise NotImplementedError
+    async def stop_forward(self, peer: str) -> bool:
+        """
+        Close the forward to `peer`, if there is one.
+"""
         raise NotImplementedError
     async def subscribe(self, topic: str) -> None:
         raise NotImplementedError
@@ -2752,6 +2783,27 @@ class TethersysNode(TethersysNodeProtocol):
             _UniffiLib.ffi_tethersys_ffi_rust_future_poll_u32,
             _UniffiLib.ffi_tethersys_ffi_rust_future_complete_u32,
             _UniffiLib.ffi_tethersys_ffi_rust_future_free_u32,
+            _uniffi_lift_return,
+            _uniffi_error_converter,
+        )
+    async def forward_tcp(self, peer: str) -> int:
+        """
+        Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+        127.0.0.1 to connect to; asking again for the same peer returns the same port.
+"""
+        
+        _UniffiFfiConverterString.check_lower(peer)
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+            _UniffiFfiConverterString.lower(peer),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterUInt16.lift
+        _uniffi_error_converter = _UniffiFfiConverterTypeTethersysError
+        return await _uniffi_rust_call_async(
+            _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(*_uniffi_lowered_args),
+            _UniffiLib.ffi_tethersys_ffi_rust_future_poll_u16,
+            _UniffiLib.ffi_tethersys_ffi_rust_future_complete_u16,
+            _UniffiLib.ffi_tethersys_ffi_rust_future_free_u16,
             _uniffi_lift_return,
             _uniffi_error_converter,
         )
@@ -3042,6 +3094,26 @@ class TethersysNode(TethersysNodeProtocol):
             _UniffiLib.ffi_tethersys_ffi_rust_future_poll_void,
             _UniffiLib.ffi_tethersys_ffi_rust_future_complete_void,
             _UniffiLib.ffi_tethersys_ffi_rust_future_free_void,
+            _uniffi_lift_return,
+            _uniffi_error_converter,
+        )
+    async def stop_forward(self, peer: str) -> bool:
+        """
+        Close the forward to `peer`, if there is one.
+"""
+        
+        _UniffiFfiConverterString.check_lower(peer)
+        _uniffi_lowered_args = (
+            self._uniffi_clone_handle(),
+            _UniffiFfiConverterString.lower(peer),
+        )
+        _uniffi_lift_return = _UniffiFfiConverterBoolean.lift
+        _uniffi_error_converter = _UniffiFfiConverterTypeTethersysError
+        return await _uniffi_rust_call_async(
+            _UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(*_uniffi_lowered_args),
+            _UniffiLib.ffi_tethersys_ffi_rust_future_poll_i8,
+            _UniffiLib.ffi_tethersys_ffi_rust_future_complete_i8,
+            _UniffiLib.ffi_tethersys_ffi_rust_future_free_i8,
             _uniffi_lift_return,
             _uniffi_error_converter,
         )

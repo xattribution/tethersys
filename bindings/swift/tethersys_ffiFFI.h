@@ -340,6 +340,11 @@ uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_accept_file(uint64_t ptr, 
 uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_check_mailbox(uint64_t ptr
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_FORWARD_TCP
+#define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_FORWARD_TCP
+uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(uint64_t ptr, RustBuffer peer
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_ID
 #define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_ID
 RustBuffer uniffi_tethersys_ffi_fn_method_tethersysnode_id(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -418,6 +423,11 @@ uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_space_keys(uint64_t ptr, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_SPACE_SET
 #define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_SPACE_SET
 uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_space_set(uint64_t ptr, RustBuffer space, RustBuffer key, RustBuffer value
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_STOP_FORWARD
+#define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_STOP_FORWARD
+uint64_t uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(uint64_t ptr, RustBuffer peer
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_FN_METHOD_TETHERSYSNODE_SUBSCRIBE
@@ -714,6 +724,12 @@ uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_FORWARD_TCP
+#define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_FORWARD_TCP
+uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_ID
 #define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_ID
 uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_id(void
@@ -807,6 +823,12 @@ uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_space_keys(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_SPACE_SET
 #define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_SPACE_SET
 uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_STOP_FORWARD
+#define UNIFFI_FFIDEF_UNIFFI_TETHERSYS_FFI_CHECKSUM_METHOD_TETHERSYSNODE_STOP_FORWARD
+uint16_t uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward(void
     
 );
 #endif

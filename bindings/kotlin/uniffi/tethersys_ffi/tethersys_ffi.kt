@@ -734,6 +734,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox(
     ): Int
+    external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp(
+    ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_id(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_invite(
@@ -765,6 +767,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_space_keys(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set(
+    ): Int
+    external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe(
     ): Int
@@ -820,6 +824,8 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_check_mailbox(`ptr`: Long,
     ): Long
+    external fun uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(`ptr`: Long,`peer`: RustBuffer.ByValue,
+    ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_invite(`ptr`: Long,`ttlSecs`: Long,`uses`: Int,uniffi_out_err: UniffiRustCallStatus, 
@@ -851,6 +857,8 @@ internal object UniffiLib {
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_space_keys(`ptr`: Long,`space`: RustBuffer.ByValue,
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_space_set(`ptr`: Long,`space`: RustBuffer.ByValue,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,
+    ): Long
+    external fun uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(`ptr`: Long,`peer`: RustBuffer.ByValue,
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_subscribe(`ptr`: Long,`topic`: RustBuffer.ByValue,
     ): Long
@@ -987,6 +995,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox() and 0xFFFF) != 18392) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp() and 0xFFFF) != 2909) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_id() and 0xFFFF) != 36981) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1033,6 +1044,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set() and 0xFFFF) != 37770) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward() and 0xFFFF) != 24260) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe() and 0xFFFF) != 39563) {
@@ -2183,6 +2197,12 @@ public interface TethersysNodeInterface {
     
     suspend fun `checkMailbox`(): kotlin.UInt
     
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+    suspend fun `forwardTcp`(`peer`: kotlin.String): kotlin.UShort
+    
     fun `id`(): kotlin.String
     
     /**
@@ -2217,6 +2237,11 @@ public interface TethersysNodeInterface {
     suspend fun `spaceKeys`(`space`: kotlin.String): List<kotlin.String>
     
     suspend fun `spaceSet`(`space`: kotlin.String, `key`: kotlin.String, `value`: kotlin.ByteArray)
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+    suspend fun `stopForward`(`peer`: kotlin.String): kotlin.Boolean
     
     suspend fun `subscribe`(`topic`: kotlin.String)
     
@@ -2368,6 +2393,32 @@ open class TethersysNode: Disposable, AutoCloseable, TethersysNodeInterface
         { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_u32(future) },
         // lift function
         { FfiConverterUInt.lift(it) },
+        // Error FFI converter
+        TethersysException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+    @Throws(TethersysException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `forwardTcp`(`peer`: kotlin.String) : kotlin.UShort {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(
+                uniffiHandle,
+                
+        FfiConverterString.lower(`peer`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_poll_u16(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_complete_u16(future, continuation) },
+        { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_u16(future) },
+        // lift function
+        { FfiConverterUShort.lift(it) },
         // Error FFI converter
         TethersysException.ErrorHandler,
     )
@@ -2688,6 +2739,31 @@ open class TethersysNode: Disposable, AutoCloseable, TethersysNodeInterface
         // lift function
         { },
         
+        // Error FFI converter
+        TethersysException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+    @Throws(TethersysException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `stopForward`(`peer`: kotlin.String) : kotlin.Boolean {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(
+                uniffiHandle,
+                
+        FfiConverterString.lower(`peer`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_poll_i8(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_complete_i8(future, continuation) },
+        { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_i8(future) },
+        // lift function
+        { FfiConverterBoolean.lift(it) },
         // Error FFI converter
         TethersysException.ErrorHandler,
     )
