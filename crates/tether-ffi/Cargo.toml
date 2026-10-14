@@ -1,0 +1,26 @@
+[package]
+name = "tether-ffi"
+description = "Kotlin, Swift and C# bindings for tether via UniFFI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "lib"]
+name = "tether_ffi"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+tether.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+uniffi = { version = "0.32", features = ["tokio"] }

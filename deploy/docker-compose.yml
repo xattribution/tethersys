@@ -1,0 +1,23 @@
+# Rendered settings live in .env next to this file (the installer writes it).
+services:
+  tetherd:
+    image: ${TETHER_IMAGE:-ghcr.io/jaredkotvas/tetherd:latest}
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "${TETHERD_PORT:-47711}:${TETHERD_PORT:-47711}/udp"
+
+  # Enabled with: docker compose --profile relay up -d
+  relay:
+    profiles: ["relay"]
+    image: ${TETHER_IMAGE:-ghcr.io/jaredkotvas/tetherd:latest}
+    restart: unless-stopped
+    entrypoint: ["iroh-relay", "--config-path", "/data/relay.toml"]
+    volumes:
+      - ./relay:/data
+    ports:
+      - "80:80/tcp"     # Let's Encrypt and plain-HTTP relay clients
+      - "443:443/tcp"   # 443 is the one port nearly every restrictive network lets out
+      - "7842:7842/udp" # QUIC address discovery (helps hole punching)
