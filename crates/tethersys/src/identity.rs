@@ -48,6 +48,7 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
 /// X25519 key used only for sealing mailbox envelopes.
 #[derive(Clone)]
 pub struct BoxKey {
+    #[cfg_attr(not(feature = "mailbox"), allow(dead_code))]
     secret: [u8; 32],
     pub public: [u8; 32],
 }
@@ -59,6 +60,7 @@ impl BoxKey {
         Self { secret, public }
     }
 
+    #[cfg_attr(not(feature = "mailbox"), allow(dead_code))]
     pub(crate) fn dh(&self, their_public: &[u8; 32]) -> [u8; 32] {
         MontgomeryPoint(*their_public)
             .mul_clamped(self.secret)

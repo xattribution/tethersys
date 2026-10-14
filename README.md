@@ -19,17 +19,27 @@ That is the whole setup. No server is involved: devices find each other on the L
 
 ## The menu
 
-An app picks the pieces it needs. Unused pieces cost nothing at runtime.
+Everything is on by default. To take only some pieces, turn the defaults off and list what the app needs:
 
-| Piece | Call | Use it for |
-|---|---|---|
-| Pairing | `invite()` / `join()` | QR or link pairing between devices |
-| Messages | `send()` | Chat, notifications, commands |
-| Request/response | `on_request()` / `request()` | Device-to-device RPC |
-| Files | `send_file()` / `accept_file()` | Resumable, verified transfers |
-| Topics | `topic().publish()` | Live fan-out: presence, cursors, telemetry |
-| Spaces | `space().set()` / `get()` | Shared state that syncs when devices meet |
-| Custom protocol | `Node::builder().protocol()` | Raw QUIC streams for anything else |
+```toml
+tethersys = { git = "https://github.com/xattribution/tethersys", default-features = false, features = ["files", "mdns"] }
+```
+
+| Piece | Feature | Call | Use it for |
+|---|---|---|---|
+| Pairing | always on | `invite()` / `join()` | QR or link pairing between devices |
+| Messages | always on | `send()` | Chat, notifications, commands |
+| Request/response | always on | `on_request()` / `request()` | Device-to-device RPC |
+| Custom protocol | always on | `Node::builder().protocol()` | Raw QUIC streams for anything else |
+| Files | `files` | `send_file()` / `accept_file()` | Resumable, verified transfers |
+| Topics | `pubsub` | `topic().publish()` | Live fan-out: presence, cursors, telemetry |
+| Spaces | `sync` (includes `pubsub`) | `space().set()` / `get()` | Shared state that syncs when devices meet |
+| LAN discovery | `mdns` | automatic | Finding devices on the same network, even offline |
+| DHT discovery | `dht` | automatic | Finding devices with no company's servers involved |
+| Offline mailbox | `mailbox` | automatic in `send()` | Messages to devices that are off (needs a server) |
+| Tunnels | `tunnel` | `tunnel()` | Device-level VPN (needs a server) |
+
+A minimal app (pair two devices, send a message) is 16.1 MB with only the core and 23.8 MB with every feature on.
 
 How devices find and reach each other is a second menu, picked with one profile:
 

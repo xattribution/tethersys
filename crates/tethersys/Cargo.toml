@@ -9,10 +9,10 @@ repository.workspace = true
 
 [dependencies]
 iroh.workspace = true
-iroh-blobs.workspace = true
-iroh-gossip.workspace = true
-iroh-mdns-address-lookup.workspace = true
-iroh-mainline-address-lookup.workspace = true
+iroh-blobs = { workspace = true, optional = true }
+iroh-gossip = { workspace = true, optional = true }
+iroh-mdns-address-lookup = { workspace = true, optional = true }
+iroh-mainline-address-lookup = { workspace = true, optional = true }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -25,10 +25,29 @@ data-encoding.workspace = true
 n0-future.workspace = true
 rand.workspace = true
 curve25519-dalek.workspace = true
-chacha20poly1305.workspace = true
+chacha20poly1305 = { workspace = true, optional = true }
 subtle.workspace = true
 
 [features]
+# Everything on by default. An app that wants less sets `default-features = false`
+# and lists only the pieces it needs. Pairing, messages, request/response, custom
+# protocols, relays and the server directory are always included.
+default = ["full"]
+full = ["files", "pubsub", "sync", "mdns", "dht", "mailbox", "tunnel"]
+# Resumable, verified file transfer (iroh-blobs).
+files = ["dep:iroh-blobs"]
+# Signed pub/sub topics (iroh-gossip).
+pubsub = ["dep:iroh-gossip"]
+# Replicated key-value spaces. Uses topics for live updates.
+sync = ["pubsub"]
+# Find peers on the same LAN with no internet.
+mdns = ["dep:iroh-mdns-address-lookup"]
+# Find peers through the BitTorrent Mainline DHT.
+dht = ["dep:iroh-mainline-address-lookup"]
+# Sealed offline delivery through a tethersysd server.
+mailbox = ["dep:chacha20poly1305"]
+# WireGuard tunnel leases from a tethersysd server.
+tunnel = []
 # Test helpers (self-signed local relays). Never enable in apps.
 test-utils = ["iroh/test-utils"]
 

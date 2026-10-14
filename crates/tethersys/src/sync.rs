@@ -13,7 +13,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
 use anyhow::{Result, anyhow, bail};
@@ -434,10 +433,6 @@ impl Inner {
         }
         Ok(changed)
     }
-}
-
-pub(crate) fn default_interval() -> Duration {
-    Duration::from_secs(60)
 }
 
 #[cfg(test)]

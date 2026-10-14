@@ -116,6 +116,7 @@ async fn pairing_messaging_and_trust() {
     assert!(a.send(ghost, "chat", "x").await.is_err());
 }
 
+#[cfg(all(feature = "files", feature = "sync"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn files_topics_and_spaces() {
     let dir = tempfile::tempdir().unwrap();
@@ -183,6 +184,7 @@ async fn files_topics_and_spaces() {
     assert_eq!(&body[..], b"hi room");
 }
 
+#[cfg(feature = "sync")]
 #[tokio::test(flavor = "multi_thread")]
 async fn state_survives_restart() {
     let dir = tempfile::tempdir().unwrap();

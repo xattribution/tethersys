@@ -129,6 +129,7 @@ impl Inner {
     }
 
     pub(crate) fn on_inbound_message(&self, from: NodeId, req: MsgReq, from_mailbox: bool) {
+        #[cfg(feature = "files")]
         if req.channel == crate::files::OFFER_CHANNEL {
             self.on_file_offer(from, &req.body);
             return;
@@ -142,6 +143,7 @@ impl Inner {
     }
 
     /// Mailbox deliveries go through the same path as live ones, minus the reply.
+    #[cfg(feature = "mailbox")]
     pub(crate) async fn dispatch_from_mailbox(&self, from: NodeId, req: MsgReq) {
         let _ = self.dispatch(from, req, true).await;
     }
@@ -169,8 +171,16 @@ impl Inner {
                 }
             }
         }
-        self.mailbox_put(to, &req).await?;
-        Ok(LinkKind::Queued)
+        #[cfg(feature = "mailbox")]
+        {
+            self.mailbox_put(to, &req).await?;
+            Ok(LinkKind::Queued)
+        }
+        #[cfg(not(feature = "mailbox"))]
+        bail!(
+            "{} is unreachable and the mailbox feature is off",
+            to.fmt_short()
+        )
     }
 
     pub(crate) async fn request(&self, to: NodeId, channel: &str, body: Bytes) -> Result<Bytes> {

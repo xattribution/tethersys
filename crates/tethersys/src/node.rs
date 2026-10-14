@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex, RwLock, Weak},
     time::Duration,
 };
@@ -15,22 +15,20 @@ use iroh::{
     endpoint::{Connection, presets},
     protocol::{DynProtocolHandler, Router},
 };
+#[cfg(feature = "files")]
 use iroh_blobs::{BlobsProtocol, api::Store};
+#[cfg(feature = "pubsub")]
 use iroh_gossip::Gossip;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
 use crate::{
     events::{Event, LinkKind},
-    files::FileOffer,
     identity::{self, BoxKey, NodeId},
     messaging::{Delivery, MessagingHandler, RequestHandler, Seen},
     pairing::{Invite, Invites, PairingHandler},
-    pubsub::Topic,
     svc::{ServerTicket, SvcReq, SvcResp},
-    sync::{Space, SpaceState, SyncHandler},
     trust::{Peer, TrustGate, TrustMode, TrustStore},
-    tunnel::{Tunnel, WgKeypair},
 };
 
 /// Which discovery layers are on. Each one works alone; together they cover more networks.
@@ -148,7 +146,7 @@ impl Config {
             trust: TrustMode::Pinned,
             connect_timeout: Duration::from_secs(10),
             auto_accept_files: None,
-            sync_interval: crate::sync::default_interval(),
+            sync_interval: Duration::from_secs(60),
             server_poll: Duration::from_secs(30),
             port: None,
             hide_ip: false,
@@ -216,12 +214,16 @@ pub(crate) struct Inner {
     pub invites: Invites,
     pub memory: MemoryLookup,
     pub seen: Seen,
+    #[cfg(feature = "files")]
     pub blobs: Store,
+    #[cfg(feature = "pubsub")]
     pub gossip: Gossip,
-    pub spaces: Mutex<HashMap<String, Arc<SpaceState>>>,
+    #[cfg(feature = "sync")]
+    pub spaces: Mutex<HashMap<String, Arc<crate::sync::SpaceState>>>,
     #[allow(clippy::type_complexity)]
     pub handlers: RwLock<HashMap<String, RequestHandler>>,
     pool: Mutex<HashMap<(NodeId, &'static [u8]), Connection>>,
+    #[cfg_attr(not(feature = "files"), allow(dead_code))]
     me: Weak<Inner>,
 }
 
@@ -253,6 +255,7 @@ fn rtt_of(conn: &Connection) -> u64 {
 }
 
 impl Inner {
+    #[cfg_attr(not(feature = "files"), allow(dead_code))]
     pub(crate) fn self_arc(&self) -> Arc<Inner> {
         self.me
             .upgrade()
@@ -377,6 +380,7 @@ impl Inner {
         }
     }
 
+    #[cfg(feature = "files")]
     pub(crate) async fn pin_on_server(&self, hash: iroh_blobs::Hash) -> Result<()> {
         self.svc(SvcReq::PinBlob {
             hash: hash.to_string(),
@@ -411,7 +415,9 @@ impl Inner {
                 let Some(inner) = weak.upgrade() else { break };
                 let result = async {
                     inner.register().await?;
-                    inner.mailbox_drain().await
+                    #[cfg(feature = "mailbox")]
+                    inner.mailbox_drain().await?;
+                    anyhow::Ok(())
                 }
                 .await;
                 match (&result, ok) {
@@ -447,9 +453,11 @@ impl Inner {
 pub struct Node {
     inner: Arc<Inner>,
     router: Router,
+    #[cfg(feature = "files")]
     _store: Arc<StoreKeepalive>,
 }
 
+#[cfg(feature = "files")]
 #[derive(Debug)]
 enum StoreKeepalive {
     Fs(#[allow(dead_code)] iroh_blobs::store::fs::FsStore),
@@ -520,9 +528,11 @@ impl Node {
                 .address_lookup(PkarrResolver::n0_dns())
                 .address_lookup(DnsAddressLookup::n0_dns());
         }
+        #[cfg(feature = "mdns")]
         if cfg.discovery.mdns {
             b = b.address_lookup(iroh_mdns_address_lookup::MdnsAddressLookup::builder());
         }
+        #[cfg(feature = "dht")]
         if cfg.discovery.dht {
             b = b.address_lookup(iroh_mainline_address_lookup::DhtAddressLookup::builder());
         }
@@ -545,6 +555,7 @@ impl Node {
             }
         }
 
+        #[cfg(feature = "files")]
         let (store, keep) = match &dir {
             Some(d) => {
                 let fs = iroh_blobs::store::fs::FsStore::load(d.join("blobs"))
@@ -557,6 +568,7 @@ impl Node {
                 ((*mem).clone(), StoreKeepalive::Mem(mem))
             }
         };
+        #[cfg(feature = "pubsub")]
         let gossip = Gossip::builder().spawn(ep.clone());
         let (events, first_rx) = broadcast::channel(1024);
 
@@ -571,8 +583,11 @@ impl Node {
             invites: Invites::default(),
             memory,
             seen: Seen::default(),
+            #[cfg(feature = "files")]
             blobs: store.clone(),
+            #[cfg(feature = "pubsub")]
             gossip: gossip.clone(),
+            #[cfg(feature = "sync")]
             spaces: Mutex::new(HashMap::new()),
             handlers: RwLock::new(HashMap::new()),
             pool: Mutex::new(HashMap::new()),
@@ -581,10 +596,19 @@ impl Node {
 
         let mut rb = Router::builder(ep)
             .accept(crate::pairing::ALPN, PairingHandler(inner.clone()))
-            .accept(crate::messaging::ALPN, MessagingHandler(inner.clone()))
-            .accept(crate::sync::ALPN, SyncHandler(inner.clone()))
-            .accept(iroh_blobs::ALPN, BlobsProtocol::new(&store, None))
-            .accept(iroh_gossip::ALPN, gossip);
+            .accept(crate::messaging::ALPN, MessagingHandler(inner.clone()));
+        #[cfg(feature = "sync")]
+        {
+            rb = rb.accept(crate::sync::ALPN, crate::sync::SyncHandler(inner.clone()));
+        }
+        #[cfg(feature = "files")]
+        {
+            rb = rb.accept(iroh_blobs::ALPN, BlobsProtocol::new(&store, None));
+        }
+        #[cfg(feature = "pubsub")]
+        {
+            rb = rb.accept(iroh_gossip::ALPN, gossip);
+        }
         for (alpn, h) in extra {
             rb = rb.accept(alpn, h);
         }
@@ -596,6 +620,7 @@ impl Node {
         Ok(Node {
             inner,
             router,
+            #[cfg(feature = "files")]
             _store: Arc::new(keep),
         })
     }
@@ -730,6 +755,7 @@ impl Node {
             .insert(channel.to_string(), h);
     }
 
+    #[cfg(feature = "mailbox")]
     /// Check the server mailbox right now instead of waiting for the next poll.
     pub async fn check_mailbox(&self) -> Result<usize> {
         self.inner.mailbox_drain().await
@@ -737,7 +763,12 @@ impl Node {
 
     // ---- files ------------------------------------------------------------------------
 
-    pub async fn send_file(&self, to: NodeId, path: impl AsRef<Path>) -> Result<FileOffer> {
+    #[cfg(feature = "files")]
+    pub async fn send_file(
+        &self,
+        to: NodeId,
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<crate::FileOffer> {
         Ok(self
             .inner
             .send_file(to, path.as_ref(), Delivery::Auto)
@@ -745,61 +776,83 @@ impl Node {
             .0)
     }
 
+    #[cfg(feature = "files")]
     pub async fn send_file_with(
         &self,
         to: NodeId,
-        path: impl AsRef<Path>,
+        path: impl AsRef<std::path::Path>,
         delivery: Delivery,
-    ) -> Result<(FileOffer, LinkKind)> {
+    ) -> Result<(crate::FileOffer, LinkKind)> {
         self.inner.send_file(to, path.as_ref(), delivery).await
     }
 
+    #[cfg(feature = "files")]
     /// Download an offered file to `dest`. Progress arrives as events.
-    pub async fn accept_file(&self, offer: &FileOffer, dest: impl AsRef<Path>) -> Result<PathBuf> {
+    pub async fn accept_file(
+        &self,
+        offer: &crate::FileOffer,
+        dest: impl AsRef<std::path::Path>,
+    ) -> Result<PathBuf> {
         self.inner.fetch_file(offer, dest.as_ref()).await
     }
 
+    #[cfg(feature = "files")]
     pub async fn purge_file(&self, hash: &str) -> Result<()> {
         self.inner.purge_file(hash).await
     }
 
     // ---- pub/sub & sync ---------------------------------------------------------------
 
+    #[cfg(feature = "pubsub")]
     /// Join a topic with all trusted peers as bootstrap.
-    pub async fn topic(&self, name: &str) -> Result<Topic> {
+    pub async fn topic(&self, name: &str) -> Result<crate::pubsub::Topic> {
         self.inner.join_topic(name, None).await
     }
 
-    pub async fn topic_with(&self, name: &str, bootstrap: Vec<NodeId>) -> Result<Topic> {
+    #[cfg(feature = "pubsub")]
+    pub async fn topic_with(
+        &self,
+        name: &str,
+        bootstrap: Vec<NodeId>,
+    ) -> Result<crate::pubsub::Topic> {
         self.inner.join_topic(name, Some(bootstrap)).await
     }
 
+    #[cfg(feature = "sync")]
     /// Open a replicated space shared with all trusted peers.
-    pub async fn space(&self, name: &str) -> Result<Space> {
+    pub async fn space(&self, name: &str) -> Result<crate::sync::Space> {
         self.inner.open_space(name, None).await
     }
 
+    #[cfg(feature = "sync")]
     /// Open a space restricted to these members.
-    pub async fn space_with(&self, name: &str, members: Vec<NodeId>) -> Result<Space> {
+    pub async fn space_with(&self, name: &str, members: Vec<NodeId>) -> Result<crate::sync::Space> {
         self.inner.open_space(name, Some(members)).await
     }
 
     // ---- tunnels ----------------------------------------------------------------------
 
+    #[cfg(feature = "tunnel")]
     /// Lease a WireGuard address on the server hub and get a ready-to-import config.
-    pub async fn tunnel(&self) -> Result<Tunnel> {
+    pub async fn tunnel(&self) -> Result<crate::tunnel::Tunnel> {
         self.inner.lease_tunnel(None).await
     }
 
+    #[cfg(feature = "tunnel")]
     /// Lease with an existing keypair (reuse the platform tunnel's key across renewals).
-    pub async fn tunnel_with_keys(&self, keys: WgKeypair) -> Result<Tunnel> {
+    pub async fn tunnel_with_keys(
+        &self,
+        keys: crate::tunnel::WgKeypair,
+    ) -> Result<crate::tunnel::Tunnel> {
         self.inner.lease_tunnel(Some(keys)).await
     }
 
+    #[cfg(feature = "tunnel")]
     pub async fn release_tunnel(&self) -> Result<()> {
         self.inner.release_tunnel().await
     }
 
+    #[cfg(feature = "tunnel")]
     pub async fn tunnel_peers(&self) -> Result<Vec<(NodeId, String)>> {
         self.inner.tunnel_peers().await
     }

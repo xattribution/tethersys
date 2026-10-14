@@ -8,7 +8,7 @@ Written for a coding agent (Claude Code) and for humans. Read this file, then `d
 |---|---|---|
 | Which profile? | `Public`, `Local`, `Sovereign`, or `Hybrid(ticket)` / `SelfHosted(ticket)` | `Public`. Only use a server profile if the app needs offline delivery, a file cache, a private relay or tunnels |
 | Which language binding? | Rust crate, Kotlin (Android), Swift (iOS/macOS), C# (Windows), Python (scripts/tests) | Match the app |
-| Which services? | messages, request/response, files, topics, spaces, tunnels, custom ALPN | Only what the app needs; unused services cost nothing |
+| Which features? | `files`, `pubsub`, `sync`, `mdns`, `dht`, `mailbox`, `tunnel` (pairing, messages, RPC and custom protocols are always on) | Set `default-features = false` and list only what the app uses. Add `mdns` for any app used on a LAN |
 
 ## 2. Add the dependency
 
@@ -16,7 +16,8 @@ Written for a coding agent (Claude Code) and for humans. Read this file, then `d
 
 ```toml
 [dependencies]
-tethersys = { git = "https://github.com/Xattribution/tethersys" }
+# Pick features from the table in section 1. This example is a file-sharing app.
+tethersys = { git = "https://github.com/xattribution/tethersys", default-features = false, features = ["files", "mdns", "dht"] }
 tokio = { version = "1", features = ["full"] }
 ```
 

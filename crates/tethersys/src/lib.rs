@@ -24,14 +24,18 @@
 pub mod events;
 pub mod files;
 pub mod identity;
+#[cfg(feature = "mailbox")]
 mod mailbox;
 pub mod messaging;
 pub mod node;
 pub mod pairing;
+#[cfg(feature = "pubsub")]
 pub mod pubsub;
 pub mod svc;
+#[cfg(feature = "sync")]
 pub mod sync;
 pub mod trust;
+#[cfg(feature = "tunnel")]
 pub mod tunnel;
 pub mod wire;
 
@@ -43,12 +47,16 @@ pub use iroh::{EndpointAddr, RelayUrl, SecretKey};
 pub use messaging::Delivery;
 pub use node::{Config, Discovery, Node, NodeBuilder, Profile, Relays};
 pub use pairing::Invite;
+#[cfg(feature = "pubsub")]
 pub use pubsub::Topic;
 pub use svc::ServerTicket;
+#[cfg(feature = "sync")]
 pub use sync::Space;
 pub use trust::{Peer, TrustMode};
+#[cfg(feature = "tunnel")]
 pub use tunnel::{Tunnel, WgKeypair};
 
 /// Re-exported so apps can build custom protocols on the same endpoint.
 pub use iroh;
+#[cfg(feature = "files")]
 pub use iroh_blobs;
