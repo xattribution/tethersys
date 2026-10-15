@@ -1025,6 +1025,12 @@ public protocol TethersysNodeProtocol: AnyObject, Sendable {
     
     func checkMailbox() async throws  -> UInt32
     
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+    func forwardTcp(peer: String) async throws  -> UInt16
+    
     func id()  -> String
     
     /**
@@ -1059,6 +1065,11 @@ public protocol TethersysNodeProtocol: AnyObject, Sendable {
     func spaceKeys(space: String) async throws  -> [String]
     
     func spaceSet(space: String, key: String, value: Data) async throws 
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+    func stopForward(peer: String) async throws  -> Bool
     
     func subscribe(topic: String) async throws 
     
@@ -1164,6 +1175,26 @@ open func checkMailbox()async throws  -> UInt32  {
             completeFunc: ffi_tethersys_ffi_rust_future_complete_u32,
             freeFunc: ffi_tethersys_ffi_rust_future_free_u32,
             liftFunc: FfiConverterUInt32.lift,
+            errorHandler: FfiConverterTypeTethersysError_lift
+        )
+}
+    
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+open func forwardTcp(peer: String)async throws  -> UInt16  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(peer)
+                )
+            },
+            pollFunc: ffi_tethersys_ffi_rust_future_poll_u16,
+            completeFunc: ffi_tethersys_ffi_rust_future_complete_u16,
+            freeFunc: ffi_tethersys_ffi_rust_future_free_u16,
+            liftFunc: FfiConverterUInt16.lift,
             errorHandler: FfiConverterTypeTethersysError_lift
         )
 }
@@ -1386,6 +1417,25 @@ open func spaceSet(space: String, key: String, value: Data)async throws   {
             completeFunc: ffi_tethersys_ffi_rust_future_complete_void,
             freeFunc: ffi_tethersys_ffi_rust_future_free_void,
             liftFunc: { $0 },
+            errorHandler: FfiConverterTypeTethersysError_lift
+        )
+}
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+open func stopForward(peer: String)async throws  -> Bool  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(peer)
+                )
+            },
+            pollFunc: ffi_tethersys_ffi_rust_future_poll_i8,
+            completeFunc: ffi_tethersys_ffi_rust_future_complete_i8,
+            freeFunc: ffi_tethersys_ffi_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
             errorHandler: FfiConverterTypeTethersysError_lift
         )
 }
@@ -2022,13 +2072,17 @@ public func FfiConverterTypeFfiProfile_lower(_ value: FfiProfile) -> RustBuffer 
 
 
 
+/**
+ * Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+ * exception's own message (a `message` field would clash with Throwable.message).
+ */
 public 
 enum TethersysError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
-    case Failed(message: String
-    )
+    case Failed(message: String)
+    
 
     
 
@@ -2060,9 +2114,10 @@ public struct FfiConverterTypeTethersysError: FfiConverterRustBuffer {
         
         case 1: return .Failed(
             message: try FfiConverterString.read(from: &buf)
-            )
+        )
+        
 
-         default: throw UniffiInternalError.unexpectedEnumCase
+        default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
@@ -2072,11 +2127,10 @@ public struct FfiConverterTypeTethersysError: FfiConverterRustBuffer {
         
 
         
-        
-        case let .Failed(message):
+        case .Failed(_ /* message is ignored*/):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(message, into: &buf)
-            
+
+        
         }
     }
 }
@@ -2317,6 +2371,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox() != 18392) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp() != 2909) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tethersys_ffi_checksum_method_tethersysnode_id() != 36981) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2363,6 +2420,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set() != 37770) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward() != 24260) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe() != 39563) {

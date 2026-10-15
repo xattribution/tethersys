@@ -31,7 +31,7 @@ subtle.workspace = true
 [features]
 # Everything on by default. An app that wants less sets `default-features = false`
 # and lists only the pieces it needs. Pairing, messages, request/response, custom
-# protocols, relays and the server directory are always included.
+# protocols, TCP forwarding, relays and the server directory are always included.
 default = ["full"]
 full = ["files", "pubsub", "sync", "mdns", "dht", "mailbox", "tunnel"]
 # Resumable, verified file transfer (iroh-blobs).

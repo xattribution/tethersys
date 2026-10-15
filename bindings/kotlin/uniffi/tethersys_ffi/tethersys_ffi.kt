@@ -30,6 +30,8 @@ import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentHashMap
+import android.os.Build
+import androidx.annotation.RequiresApi
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
@@ -734,6 +736,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox(
     ): Int
+    external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp(
+    ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_id(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_invite(
@@ -765,6 +769,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_space_keys(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set(
+    ): Int
+    external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward(
     ): Int
     external fun uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe(
     ): Int
@@ -820,6 +826,8 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_check_mailbox(`ptr`: Long,
     ): Long
+    external fun uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(`ptr`: Long,`peer`: RustBuffer.ByValue,
+    ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_invite(`ptr`: Long,`ttlSecs`: Long,`uses`: Int,uniffi_out_err: UniffiRustCallStatus, 
@@ -851,6 +859,8 @@ internal object UniffiLib {
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_space_keys(`ptr`: Long,`space`: RustBuffer.ByValue,
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_space_set(`ptr`: Long,`space`: RustBuffer.ByValue,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,
+    ): Long
+    external fun uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(`ptr`: Long,`peer`: RustBuffer.ByValue,
     ): Long
     external fun uniffi_tethersys_ffi_fn_method_tethersysnode_subscribe(`ptr`: Long,`topic`: RustBuffer.ByValue,
     ): Long
@@ -987,6 +997,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_check_mailbox() and 0xFFFF) != 18392) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_forward_tcp() and 0xFFFF) != 2909) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_id() and 0xFFFF) != 36981) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1033,6 +1046,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_space_set() and 0xFFFF) != 37770) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_stop_forward() and 0xFFFF) != 24260) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_tethersys_ffi_checksum_method_tethersysnode_subscribe() and 0xFFFF) != 39563) {
@@ -1246,28 +1262,28 @@ private class UniffiJnaCleanable(
 // using Android or not.
 // There are further runtime checks to chose the correct implementation
 // of the cleaner.
+
+
 private fun UniffiCleaner.Companion.create(): UniffiCleaner =
-    try {
-        // For safety's sake: if the library hasn't been run in android_cleaner = true
-        // mode, but is being run on Android, then we still need to think about
-        // Android API versions.
-        // So we check if java.lang.ref.Cleaner is there, and use that…
-        java.lang.Class.forName("java.lang.ref.Cleaner")
-        JavaLangRefCleaner()
-    } catch (e: ClassNotFoundException) {
-        // … otherwise, fallback to the JNA cleaner.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        AndroidSystemCleaner()
+    } else {
         UniffiJnaCleaner()
     }
 
-private class JavaLangRefCleaner : UniffiCleaner {
-    val cleaner = java.lang.ref.Cleaner.create()
+// The SystemCleaner, available from API Level 33.
+// Some API Level 33 OSes do not support using it, so we require API Level 34.
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+private class AndroidSystemCleaner : UniffiCleaner {
+    val cleaner = android.system.SystemCleaner.cleaner()
 
     override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
-        JavaLangRefCleanable(cleaner.register(value, cleanUpTask))
+        AndroidSystemCleanable(cleaner.register(value, cleanUpTask))
 }
 
-private class JavaLangRefCleanable(
-    val cleanable: java.lang.ref.Cleaner.Cleanable
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+private class AndroidSystemCleanable(
+    private val cleanable: java.lang.ref.Cleaner.Cleanable,
 ) : UniffiCleaner.Cleanable {
     override fun clean() = cleanable.clean()
 }
@@ -2183,6 +2199,12 @@ public interface TethersysNodeInterface {
     
     suspend fun `checkMailbox`(): kotlin.UInt
     
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+    suspend fun `forwardTcp`(`peer`: kotlin.String): kotlin.UShort
+    
     fun `id`(): kotlin.String
     
     /**
@@ -2217,6 +2239,11 @@ public interface TethersysNodeInterface {
     suspend fun `spaceKeys`(`space`: kotlin.String): List<kotlin.String>
     
     suspend fun `spaceSet`(`space`: kotlin.String, `key`: kotlin.String, `value`: kotlin.ByteArray)
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+    suspend fun `stopForward`(`peer`: kotlin.String): kotlin.Boolean
     
     suspend fun `subscribe`(`topic`: kotlin.String)
     
@@ -2368,6 +2395,32 @@ open class TethersysNode: Disposable, AutoCloseable, TethersysNodeInterface
         { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_u32(future) },
         // lift function
         { FfiConverterUInt.lift(it) },
+        // Error FFI converter
+        TethersysException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Forward a loopback TCP port to `peer`, which serves TCP. Returns the port on
+     * 127.0.0.1 to connect to; asking again for the same peer returns the same port.
+     */
+    @Throws(TethersysException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `forwardTcp`(`peer`: kotlin.String) : kotlin.UShort {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_forward_tcp(
+                uniffiHandle,
+                
+        FfiConverterString.lower(`peer`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_poll_u16(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_complete_u16(future, continuation) },
+        { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_u16(future) },
+        // lift function
+        { FfiConverterUShort.lift(it) },
         // Error FFI converter
         TethersysException.ErrorHandler,
     )
@@ -2688,6 +2741,31 @@ open class TethersysNode: Disposable, AutoCloseable, TethersysNodeInterface
         // lift function
         { },
         
+        // Error FFI converter
+        TethersysException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Close the forward to `peer`, if there is one.
+     */
+    @Throws(TethersysException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `stopForward`(`peer`: kotlin.String) : kotlin.Boolean {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_tethersys_ffi_fn_method_tethersysnode_stop_forward(
+                uniffiHandle,
+                
+        FfiConverterString.lower(`peer`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_poll_i8(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_tethersys_ffi_rust_future_complete_i8(future, continuation) },
+        { future -> UniffiLib.ffi_tethersys_ffi_rust_future_free_i8(future) },
+        // lift function
+        { FfiConverterBoolean.lift(it) },
         // Error FFI converter
         TethersysException.ErrorHandler,
     )
@@ -3402,25 +3480,18 @@ public object FfiConverterTypeFfiProfile: FfiConverterRustBuffer<FfiProfile> {
 
 
 
-sealed class TethersysException: kotlin.Exception() {
-    
-    class Failed(
+/**
+ * Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+ * exception's own message (a `message` field would clash with Throwable.message).
+ */
+sealed class TethersysException(message: String): kotlin.Exception(message) {
         
-        val `message`: kotlin.String
-        ) : TethersysException() {
-        override val message
-            get() = "message=${ `message` }"
-    }
-    
-
-    
-
+        class Failed(message: String) : TethersysException(message)
+        
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<TethersysException> {
         override fun lift(error_buf: RustBuffer.ByValue): TethersysException = FfiConverterTypeTethersysError.lift(error_buf)
     }
-
-    
 }
 
 /**
@@ -3429,30 +3500,21 @@ sealed class TethersysException: kotlin.Exception() {
 public object FfiConverterTypeTethersysError : FfiConverterRustBuffer<TethersysException> {
     override fun read(buf: ByteBuffer): TethersysException {
         
-
-        return when(buf.getInt()) {
-            1 -> TethersysException.Failed(
-                FfiConverterString.read(buf),
-                )
+            return when(buf.getInt()) {
+            1 -> TethersysException.Failed(FfiConverterString.read(buf))
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
+        
     }
 
     override fun allocationSize(value: TethersysException): ULong {
-        return when(value) {
-            is TethersysException.Failed -> (
-                // Add the size for the Int that specifies the variant plus the size needed for all fields
-                4UL
-                + FfiConverterString.allocationSize(value.`message`)
-            )
-        }
+        return 4UL
     }
 
     override fun write(value: TethersysException, buf: ByteBuffer) {
         when(value) {
             is TethersysException.Failed -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.`message`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

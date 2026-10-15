@@ -117,24 +117,46 @@ Android: `com.wireguard.android:tunnel` (`GoBackend`). iOS: WireGuardKit in a Ne
 
 ```rust
 let node = Node::builder(cfg).protocol(b"myapp/video/1", MyHandler).spawn().await?;
-let conn = node.endpoint().connect(peer, b"myapp/video/1").await?;   // raw QUIC streams and datagrams
+let conn = node.connect(peer, b"myapp/video/1").await?;   // raw QUIC streams and datagrams, pooled
 ```
 Custom protocols sit behind the same trust gate.
+
+**Reach an existing TCP service (port forwarding)**
+
+For an app that already speaks HTTP or TLS to a server, tethersys can carry the TCP
+connection instead of rewriting the client. The server side serves a local address; the
+client side gets a loopback port that leads there over whatever path works (LAN,
+hole-punched or relayed). No port forwarding on the router.
+
+```rust
+// next to the service
+let node = Node::builder(cfg).serve_tcp("127.0.0.1:8443".parse()?).spawn().await?;
+// on the client: connect your existing client to fwd.local_addr()
+let fwd = node.forward_tcp(server_id, "127.0.0.1:0".parse()?).await?;
+```
+From Kotlin/Swift: `val port = node.forwardTcp(serverId)`, then use `127.0.0.1:port`.
+Only paired peers can forward, and each new stream is checked against the trust list, so
+`remove_peer` cuts a peer off without restarting. Keep the service's own authentication
+and TLS: tethersys decides who can reach the port, the service still decides what they
+can do. TLS hostname checks see `127.0.0.1`, so pin the certificate rather than relying
+on the name.
 
 ## 6. Native builds
 
 The FFI crate exposes `TethersysNode` with string ids, byte payloads and one `EventListener` callback.
 
 ```bash
-# Generate bindings from a host build
-cargo build -p tethersys-ffi --release
+# Generate bindings from a host debug build (release builds are stripped, which drops the UniFFI metadata)
+cargo build -p tethersys-ffi
 cargo run -p tethersys-ffi --features bindgen --bin uniffi-bindgen -- \
-  generate --library target/release/libtethersys_ffi.so --language kotlin --out-dir bindings/kotlin
+  generate --library target/debug/libtethersys_ffi.so --language kotlin --out-dir bindings/kotlin
 #   --language swift  → bindings/swift      --language python → bindings/python
 
 # Android (.so per ABI into jniLibs)
 cargo install cargo-ndk
 cargo ndk -t arm64-v8a -t x86_64 -o app/src/main/jniLibs build -p tethersys-ffi --release
+# The Kotlin bindings are Android-flavored (uniffi.toml): add net.java.dev.jna:jna (the aar)
+# and androidx.annotation, and keep com.sun.jna.** and uniffi.tethersys_ffi.** from R8.
 
 # iOS (static lib per target, then an XCFramework)
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim

@@ -1,0 +1,5 @@
+# Kotlin bindings are for Android: pick the cleaner by API level at runtime
+# (java.lang.ref.Cleaner only exists from API 33).
+[bindings.kotlin]
+android = true
+android_cleaner = true
