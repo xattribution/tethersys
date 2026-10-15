@@ -152,6 +152,7 @@ impl Inner {
     }
 
     fn on_topic_message(&self, topic: &str, author: NodeId, body: Vec<u8>) {
+        #[cfg(feature = "sync")]
         if let Some(space) = topic.strip_prefix(crate::sync::TOPIC_PREFIX) {
             self.on_space_broadcast(space, author, &body);
             return;
