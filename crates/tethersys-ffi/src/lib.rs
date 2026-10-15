@@ -12,7 +12,10 @@ use tokio::sync::Mutex;
 
 uniffi::setup_scaffolding!();
 
+/// Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+/// exception's own message (a `message` field would clash with Throwable.message).
 #[derive(Debug, uniffi::Error)]
+#[uniffi(flat_error)]
 pub enum TethersysError {
     Failed { message: String },
 }

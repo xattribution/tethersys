@@ -2072,13 +2072,17 @@ public func FfiConverterTypeFfiProfile_lower(_ value: FfiProfile) -> RustBuffer 
 
 
 
+/**
+ * Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+ * exception's own message (a `message` field would clash with Throwable.message).
+ */
 public 
 enum TethersysError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
-    case Failed(message: String
-    )
+    case Failed(message: String)
+    
 
     
 
@@ -2110,9 +2114,10 @@ public struct FfiConverterTypeTethersysError: FfiConverterRustBuffer {
         
         case 1: return .Failed(
             message: try FfiConverterString.read(from: &buf)
-            )
+        )
+        
 
-         default: throw UniffiInternalError.unexpectedEnumCase
+        default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
@@ -2122,11 +2127,10 @@ public struct FfiConverterTypeTethersysError: FfiConverterRustBuffer {
         
 
         
-        
-        case let .Failed(message):
+        case .Failed(_ /* message is ignored*/):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(message, into: &buf)
-            
+
+        
         }
     }
 }

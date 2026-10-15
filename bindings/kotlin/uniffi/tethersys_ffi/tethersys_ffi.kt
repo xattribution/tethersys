@@ -3478,25 +3478,18 @@ public object FfiConverterTypeFfiProfile: FfiConverterRustBuffer<FfiProfile> {
 
 
 
-sealed class TethersysException: kotlin.Exception() {
-    
-    class Failed(
+/**
+ * Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+ * exception's own message (a `message` field would clash with Throwable.message).
+ */
+sealed class TethersysException(message: String): kotlin.Exception(message) {
         
-        val `message`: kotlin.String
-        ) : TethersysException() {
-        override val message
-            get() = "message=${ `message` }"
-    }
-    
-
-    
-
+        class Failed(message: String) : TethersysException(message)
+        
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<TethersysException> {
         override fun lift(error_buf: RustBuffer.ByValue): TethersysException = FfiConverterTypeTethersysError.lift(error_buf)
     }
-
-    
 }
 
 /**
@@ -3505,30 +3498,21 @@ sealed class TethersysException: kotlin.Exception() {
 public object FfiConverterTypeTethersysError : FfiConverterRustBuffer<TethersysException> {
     override fun read(buf: ByteBuffer): TethersysException {
         
-
-        return when(buf.getInt()) {
-            1 -> TethersysException.Failed(
-                FfiConverterString.read(buf),
-                )
+            return when(buf.getInt()) {
+            1 -> TethersysException.Failed(FfiConverterString.read(buf))
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
+        
     }
 
     override fun allocationSize(value: TethersysException): ULong {
-        return when(value) {
-            is TethersysException.Failed -> (
-                // Add the size for the Int that specifies the variant plus the size needed for all fields
-                4UL
-                + FfiConverterString.allocationSize(value.`message`)
-            )
-        }
+        return 4UL
     }
 
     override fun write(value: TethersysException, buf: ByteBuffer) {
         when(value) {
             is TethersysException.Failed -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.`message`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

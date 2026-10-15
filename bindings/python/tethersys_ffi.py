@@ -2244,22 +2244,23 @@ class _UniffiFfiConverterTypeFfiEvent(_UniffiConverterRustBuffer):
 # __dict__.  All of this happens in dummy class to avoid polluting the module
 # namespace.
 class TethersysError(Exception):
+    """
+    Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+    exception's own message (a `message` field would clash with Throwable.message).
+"""
     pass
 
 _UniffiTempTethersysError = TethersysError
 
 class TethersysError:  # type: ignore
+    """
+    Flat, so Kotlin gets `TethersysException.Failed(message)` with the text as the
+    exception's own message (a `message` field would clash with Throwable.message).
+"""
     
     class Failed(_UniffiTempTethersysError):
-        
-        def __init__(self, message):
-            super().__init__(", ".join([
-                "message={!r}".format(message),
-            ]))
-            self.message = message
-
         def __repr__(self):
-            return "TethersysError.Failed({})".format(str(self))
+            return "TethersysError.Failed({})".format(repr(str(self)))
     _UniffiTempTethersysError.Failed = Failed # type: ignore
 
 TethersysError = _UniffiTempTethersysError # type: ignore
@@ -2279,14 +2280,12 @@ class _UniffiFfiConverterTypeTethersysError(_UniffiConverterRustBuffer):
     @staticmethod
     def check_lower(value):
         if isinstance(value, TethersysError.Failed):
-            _UniffiFfiConverterString.check_lower(value.message)
             return
 
     @staticmethod
     def write(value, buf):
         if isinstance(value, TethersysError.Failed):
             buf.write_i32(1)
-            _UniffiFfiConverterString.write(value.message, buf)
 
 
 class EventListener():
