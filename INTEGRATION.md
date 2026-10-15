@@ -154,6 +154,8 @@ cargo run -p tethersys-ffi --features bindgen --bin uniffi-bindgen -- \
 # Android (.so per ABI into jniLibs)
 cargo install cargo-ndk
 cargo ndk -t arm64-v8a -t x86_64 -o app/src/main/jniLibs build -p tethersys-ffi --release
+# The Kotlin bindings are Android-flavored (uniffi.toml): add net.java.dev.jna:jna (the aar)
+# and androidx.annotation, and keep com.sun.jna.** and uniffi.tethersys_ffi.** from R8.
 
 # iOS (static lib per target, then an XCFramework)
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
