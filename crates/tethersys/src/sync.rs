@@ -34,6 +34,13 @@ use crate::{
 };
 
 pub const ALPN: &[u8] = b"tethersys/sync/1";
+
+/// How far ahead of this device's clock another member's entry may be. An entry further in
+/// the future is not taken yet: it stays out of the local map, so the next reconcile offers it
+/// again and it lands once the clocks agree. Without a bound, a member (or a device whose clock
+/// is badly wrong) could write a timestamp no later write can beat, such as `u64::MAX`, and own
+/// that key for good.
+pub const MAX_CLOCK_SKEW_MS: u64 = 10 * 60 * 1000;
 pub(crate) const TOPIC_PREFIX: &str = "tethersys.space/";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -145,7 +152,26 @@ impl SpaceState {
     fn next_ts(&self) -> u64 {
         let map = self.map.lock().unwrap();
         let last = map.values().map(|e| e.ts).max().unwrap_or(0);
-        now_ms().max(last + 1)
+        // Saturating: `last + 1` must never wrap to 0 and make every later write lose.
+        now_ms().max(last.saturating_add(1))
+    }
+
+    /// Merge entries from other members, leaving out any dated more than
+    /// [`MAX_CLOCK_SKEW_MS`] after `now`. Returns the ones that changed local state.
+    fn merge_remote(&self, incoming: Vec<Entry>, now: u64) -> Vec<Entry> {
+        let limit = now.saturating_add(MAX_CLOCK_SKEW_MS);
+        let (timely, early): (Vec<Entry>, Vec<Entry>) =
+            incoming.into_iter().partition(|e| e.ts <= limit);
+        for e in &early {
+            tracing::debug!(
+                "space {}: entry {:?} from {} is {} ms ahead of this clock; taking it later",
+                self.name,
+                e.key,
+                e.author,
+                e.ts - now
+            );
+        }
+        self.merge(timely)
     }
 
     /// Merge entries; returns the ones that changed local state.
@@ -210,7 +236,13 @@ impl Space {
     async fn write(&self, key: &str, value: Option<Vec<u8>>) -> Result<()> {
         let ts = self.state.next_ts();
         let entry = Entry::new(self.inner.ep.secret_key(), &self.state.name, key, value, ts);
-        for e in self.state.merge(vec![entry.clone()]) {
+        let changed = self.state.merge(vec![entry.clone()]);
+        if changed.is_empty() {
+            // Only possible when the current entry already holds the highest timestamp there
+            // is (written before entries were bounded). Say so instead of losing the write.
+            bail!("{key:?} in space {} holds a timestamp no write can beat", self.state.name);
+        }
+        for e in changed {
             self.inner.emit_space_change(&self.state.name, &e);
         }
         // Live peers get it now; everyone else catches up on the next reconcile.
@@ -337,7 +369,7 @@ impl Inner {
             .into_iter()
             .filter(|e| e.verify(&state.name) && self.may_write(state, &e.author))
             .collect();
-        let changed = state.merge(ok);
+        let changed = state.merge_remote(ok, now_ms());
         for e in &changed {
             self.emit_space_change(&state.name, e);
         }
@@ -452,5 +484,30 @@ mod tests {
         let mut forged = e2.clone();
         forged.value = Some(b"evil".to_vec());
         assert!(!forged.verify("t"));
+    }
+
+    #[test]
+    fn a_member_cannot_own_a_key_with_a_far_future_timestamp() {
+        let mallory = iroh::SecretKey::generate();
+        let s = SpaceState::load("t", None, None);
+        let now = 1_000_000_000_000;
+        let pinned = Entry::new(&mallory, "t", "k", Some(b"mine".to_vec()), u64::MAX);
+        assert!(s.merge_remote(vec![pinned], now).is_empty(), "u64::MAX is refused");
+        let early = Entry::new(&mallory, "t", "k", Some(b"x".to_vec()), now + MAX_CLOCK_SKEW_MS + 1);
+        assert!(s.merge_remote(vec![early.clone()], now).is_empty(), "past the skew is refused");
+        let near = Entry::new(&mallory, "t", "k", Some(b"y".to_vec()), now + MAX_CLOCK_SKEW_MS);
+        assert_eq!(s.merge_remote(vec![near], now).len(), 1, "within the skew is taken");
+        // The refused entry isn't lost: once the clocks agree, the next reconcile delivers it.
+        assert_eq!(s.merge_remote(vec![early], now + 2).len(), 1, "taken once it's timely");
+    }
+
+    #[test]
+    fn the_next_timestamp_never_wraps() {
+        let a = iroh::SecretKey::generate();
+        let s = SpaceState::load("t", None, None);
+        // An entry already at the top (accepted before entries were bounded, or written
+        // locally) must not make the next write's timestamp wrap to 0.
+        s.merge(vec![Entry::new(&a, "t", "k", Some(b"1".to_vec()), u64::MAX)]);
+        assert_eq!(s.next_ts(), u64::MAX);
     }
 }
